@@ -1,0 +1,43 @@
+# This Docker Compose file defines the services for end-to-end (E2E) testing.
+# It sets up the API (backend) and Web (frontend) services, ensuring they can communicate.
+services:
+  # Django API service
+  api:
+    build:
+      context: api
+      dockerfile: e2e.Dockerfile # Use a specific Dockerfile for E2E tests
+    healthcheck:
+      # Waits for the API to be healthy before starting dependent services (like the web frontend).
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 1m
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - e2e-network # Connect to the shared network
+
+  # Web service (e.g., React/Vue frontend)
+  web:
+    build:
+      context: web
+      dockerfile: e2e.Dockerfile # Use a specific Dockerfile for E2E tests
+      args:
+        # Pass the API URL during build time (e.g., for Vite)
+        - VITE_API_URL=http://api:8000
+    environment:
+      # Make the API URL available at runtime
+      - API_URL=http://api:8000
+    volumes:
+      # Mount a volume to store test reports (e.g., Playwright)
+      - ./playwright-report:/usr/src/app/playwright-report
+    depends_on:
+      api:
+        # Ensure the 'api' service is healthy before starting 'web'
+        condition: service_healthy
+    networks:
+      - e2e-network # Connect to the shared network
+
+# Defines the shared network for inter-service communication.
+networks:
+  e2e-network:
+    driver: bridge

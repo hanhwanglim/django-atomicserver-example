@@ -1,0 +1,38 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Compose
+      uses: docker/setup-compose-action@v1
+      with:
+        version: latest
+        cache-binary: true
+
+    - name: Build Docker services
+      run: docker compose -f compose.e2e.yaml build
+
+    - name: Start Docker services
+      run: docker compose -f compose.e2e.yaml up --abort-on-container-exit
+
+    - name: Upload Playwright report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 30
+
+    - name: Stop and remove Docker services
+      if: always()
+      run: docker compose -f compose.e2e.yaml down --volumes
